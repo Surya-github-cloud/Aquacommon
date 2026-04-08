@@ -154,9 +154,6 @@ Judges should verify:
 - grading and reward logic that balances fishing success with sustainability and hazards
 - overall code quality, project organization, and documentation
 
-## Demo / Screenshots
-
-> Add screenshots, GIFs, or demo links here once available.
 
 ## Troubleshooting
 
