@@ -1,3 +1,4 @@
+import argparse
 import os
 import numpy as np
 from typing import Any, Dict, List
@@ -7,14 +8,25 @@ try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
-    pass
+    # Fallback: manually load a local .env file if python-dotenv is not installed.
+    dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(dotenv_path):
+        with open(dotenv_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                os.environ.setdefault(key, value)
 
 from openai import OpenAI
 
 from models import AquacommonsAction
 from server.environment import AquacommonsEnvironment
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
@@ -184,7 +196,17 @@ def run_task(task_name: str) -> None:
 
 
 def main() -> None:
-    run_task(TASK_NAME)
+    parser = argparse.ArgumentParser(
+        description="Run Aquacommons inference for a specified task."
+    )
+    parser.add_argument(
+        "task",
+        nargs="?",
+        default=os.getenv("TASK_NAME", "easy-calm-bay"),
+        help="Task name to run (defaults to TASK_NAME in .env or easy-calm-bay)",
+    )
+    args = parser.parse_args()
+    run_task(args.task)
 
 
 if __name__ == "__main__":

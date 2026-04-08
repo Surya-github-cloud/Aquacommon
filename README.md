@@ -24,21 +24,36 @@ The task challenges an agent to:
 - deploy fishing casts while preserving quota
 - react to dynamic weather, currents, and hazards
 
-AquaCommons is designed for RL evaluation because it combines structured action and observation spaces, clear task scenarios, and reward logic that balances catch, efficiency, and sustainability.
+The environment is designed for RL evaluation with structured action and observation spaces, clear task scenarios, and reward logic that balances fishing success, efficiency, and sustainability.
 
-The reward function is scaled to keep episode scores within a bounded range. Each step is scored by combining multiple numeric components:
+The reward function encourages:
+- **Efficient fishing**: Rewards for catching fish in dense areas with moderate effort
+- **Fuel conservation**: Bonuses for smart navigation with minimal waste
+- **Sustainable practices**: Incentives for responsible casting and quota compliance
+- **Risk management**: Penalties for hazards, wasted casts, and quota violations
 
-- `catch_reward`: base 0.12 plus up to 0.45 × intensity × local_density, with higher local density and moderate cast intensity earning more points.
-- `move_reward`: +0.25 for moving to a cell with at least 0.05 higher fish density, +0.12 for at least 0.02 better density, +0.05 for non-worsening movement, and -0.03 for moving into lower density.
-- `efficiency_reward`: +0.02 per move on easy/medium tasks, +0.01 per move on hard tasks; +0.10 for staying on a rich location while scanning.
-- `sustainability_reward`: +0.14 for responsible casts with intensity ≤ 0.65 in dense areas, -0.06 for aggressive or low-value casts, plus an extra +0.05 bonus for low-intensity casts in dense regions.
-- `penalty`: +0.40 penalty for a net cast that catches nothing, +0.25 penalty for high-intensity casts in low-density water, and an automatic -0.02 step cost every step.
-- `hazard_penalty`: -0.60 for entering a hazard tile in hard mode, plus extra fuel cost.
-- terminal bonus: +0.80 raw reward when the agent returns safely to port with valid catch and no quota violation.
+Rewards are normalized to `[0.0, 1.0]` for consistent comparison across episodes. The baseline `inference.py` script is a separate demo runner and not part of the core environment.
 
-The raw reward is then normalized as `(raw_reward + 1.0) / 2.0` and clipped to the range `0.0–1.0`, producing a final per-step reward that remains comparable across episodes.
+## Benchmark Tasks
 
-This project is built on OpenEnv and provides environment dynamics and scoring rules. The baseline `inference.py` script is a separate demo runner and is not part of the core environment API.
+AquaCommons includes three difficulty levels, each with unique environmental conditions and challenges:
+
+### Easy: Calm Bay (`easy-calm-bay`)
+- **Conditions**: Stable currents, predictable fish clusters, calm weather
+- **Challenges**: High startup quota allows for exploration, but requires efficient navigation to dense areas
+- **Goal**: Learn basic movement and casting strategies in a forgiving environment
+
+### Medium: Migrating Schools (`medium-migrating-schools`)
+- **Conditions**: Shifting currents, moderate quotas, dynamic fish migration patterns
+- **Challenges**: Fish schools move unpredictably, requiring adaptive navigation and timing
+- **Goal**: Balance exploration with exploitation, manage fuel while tracking moving targets
+
+### Hard: Volatile Ocean (`hard-volatile-ocean`)
+- **Conditions**: Storms, hazards, tight fuel limits, strict quota enforcement
+- **Challenges**: Random hazards reduce fuel, weather affects movement, high penalty for quota violations
+- **Goal**: Master risk management, emergency returns, and sustainable harvesting under pressure
+
+Each task runs for up to 60 steps, with success determined by returning to port with valid catch and no quota violations.
 
 ## Quick Start
 
@@ -49,16 +64,22 @@ git clone https://github.com/Surya-github-cloud/Aquacommon.git
 cd aquacommons
 ```
 
-2. Set up environment variables:
+2. (Optional) Set up environment variables for the demo script:
+
+If you want to run the `inference.py` demo script with LLM-based features, copy the template and add your Hugging Face token:
 
 ```bash
-cp .env.example .env
-# Edit .env and add your Hugging Face token (HF_TOKEN) from https://huggingface.co/settings/tokens
-# The HF_TOKEN is required only for running the inference.py demo script
-# The core OpenEnv environment (server) runs without any environment variables
+copy .env.example .env  # Windows
+cp .env.example .env    # macOS/Linux
 ```
 
+Then edit `.env` and add your Hugging Face token from https://huggingface.co/settings/tokens
+
+> **Note**: The core environment requires no environment variables and can be tested without this step.
+> The `inference.py` demo script is optional and can run with or without an HF token (LLM features are disabled without it).
+
 3. Create and activate a virtual environment:
+
 
 ```bash
 python -m venv .venv
@@ -78,33 +99,43 @@ pip install -r server/requirements.txt
 uvicorn server.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
-6. Run the demo script (requires HF_TOKEN in .env):
+6. Run a specific task with the demo script:
 
 ```bash
-python inference.py
+python inference.py easy-calm-bay
+python inference.py medium-migrating-schools
+python inference.py hard-volatile-ocean
 ```
+
+If no task is provided, the script defaults to `easy-calm-bay`. The demo script is optional for evaluation; judges can also test the environment directly via the HTTP server.
 
 ## Features
 
-- OpenEnv-compliant environment with `reset()` and `step()`, plus internal state modeling
-- Typed Pydantic models for actions, observations, and state
-- Three benchmark tasks: `easy-calm-bay`, `medium-migrating-schools`, `hard-volatile-ocean`
-- Reward logic for catch, fuel efficiency, sustainability, and hazard penalties
-- Baseline demo script with step logging and final score output
-- FastAPI HTTP server exposing environment endpoints
-- Docker container support for local and Hugging Face Spaces deployment
+- OpenEnv-compatible environment with `reset()` and `step()` methods
+- Typed Pydantic models for actions and observations
+- Three benchmark tasks with increasing difficulty
+- Comprehensive reward system balancing catch, efficiency, and sustainability
+- Baseline demo script with step logging and score tracking
+- FastAPI HTTP server with environment endpoints
+- Docker support for deployment to Hugging Face Spaces
 
 ## Repository Layout
 
-- `inference.py` — REQUIRED at repository root; baseline evaluation/demo runner
-- `openenv.yaml` — OpenEnv metadata, task definitions, and deployment settings
-- `server/environment.py` — core OpenEnv environment implementation
-- `server/app.py` — HTTP server exposing environment interfaces and health checks
-- `models.py` — `AquacommonsAction`, `AquacommonsObservation`, and state schema definitions
-- `server/requirements.txt` — runtime Python dependencies for the server
-- `Dockerfile` — container build instructions with port handling for Spaces
-- `pyproject.toml` — package metadata and installation config
-- `README.md` — this submission documentation
+**Core Environment**
+- `server/environment.py` — OpenEnv-compatible environment implementation
+- `server/app.py` — HTTP/WebSocket server for environment interaction
+- `models.py` — Pydantic models for actions and observations
+- `server/requirements.txt` — runtime dependencies
+
+**Demo & Configuration**
+- `inference.py` — Optional demo script at repository root (separate from core)
+- `openenv.yaml` — Environment metadata and task definitions
+- `.env.example` — Template for optional environment variables
+
+**Deployment**
+- `Dockerfile` — Container image for Hugging Face Spaces
+- `pyproject.toml` — Package configuration
+- `README.md` — This file
 
 Expected file layout:
 
@@ -122,132 +153,50 @@ Expected file layout:
     └── requirements.txt
 ```
 
-## Submission Requirements
 
-The hackathon submission is expected to include:
 
-- A public GitHub repository: https://github.com/Surya-github-cloud/Aquacommon
-- `server/requirements.txt`
-- `inference.py` located at the repository root
-- `README.md`
-- A deployed Hugging Face Spaces URL: https://huggingface.co/spaces/suryavamsi0818/openEnv
-- A working Docker/container setup if applicable
-- `openenv.yaml` and supporting environment files
+## Hackathon Submission
 
-Important notes for review:
+**GitHub**: https://github.com/Surya-github-cloud/Aquacommon  
+**Deployed Space**: https://huggingface.co/spaces/suryavamsi0818/openEnv (public, running)
 
-- `inference.py` must be located in the root of the repository.
-- Support files may exist alongside it in the repo root.
-- All environment logic must run offline.
-- No external APIs or cloud databases are required for the core environment.
-- The submitted Hugging Face Space must be built and running.
+### Core Requirements Met
+✓ Public GitHub repository with full source code  
+✓ `inference.py` at repository root (optional demo, separate from core)  
+✓ `server/requirements.txt` with all dependencies  
+✓ `README.md` documentation  
+✓ Deployed, publicly accessible Hugging Face Space  
+✓ OpenEnv-compatible environment: `reset()` and `step()` methods  
+✓ Zero external API dependencies for core simulation  
+✓ Three benchmark tasks with consistent scoring  
 
-## Prerequisites
+**Team Note**: If you qualified as a solo participant in Round 1, you will be paired into a team for the finale.
 
-- Python 3.10 or later
-- Git for repository access and version control
-- Virtual environment familiarity
-- `uvicorn` for running the FastAPI server locally
-- Hugging Face account with API token (for running the inference.py demo script)
-- `docker` for container-based deployment or testing
+## Testing Locally
 
-> The environment itself runs offline and does not depend on external APIs. The core environment and server do not require any external API token. If `inference.py` is used for an optional LLM-based demo, that component may require an API token, but it is separate from the offline environment.
-
-## Installation
-
-1. Clone the repository:
+**Quick setup for judges or development:**
 
 ```bash
 git clone https://github.com/Surya-github-cloud/Aquacommon.git
 cd aquacommons
-```
-
-2. Create and activate a virtual environment:
-
-```bash
 python -m venv .venv
-.venv\Scripts\activate    # Windows
-source .venv/bin/activate # macOS/Linux
-```
-
-3. Install dependencies:
-
-```bash
+.venv\Scripts\activate  # Windows; on macOS/Linux: source .venv/bin/activate
 pip install -r server/requirements.txt
+python inference.py easy-calm-bay
 ```
 
-4. Confirm `uvicorn` is installed:
+The demo script will print structured output showing each step and episode score. No setup or credentials are required for this.
 
-```bash
-python -m uvicorn --help
-```
-
-## How to Run Locally
-
-Start the OpenEnv server locally:
-
-```bash
-uvicorn server.app:app --reload --host 0.0.0.0 --port 8000
-```
-
-Then confirm startup:
-
-```bash
-curl http://localhost:8000/health
-```
-
-Run the demo script from the repository root:
-
-```bash
-python inference.py
-```
-
-## Offline Execution Requirements
-
-- The core environment is built to run offline.
-- No cloud database is required.
-- No external API calls are required for the environment itself.
-- Any optional LLM/demo path in `inference.py` is separate from the offline environment and is not required for validation.
-
-## Evaluation Criteria
-
-Reviewers can validate:
-
-- runtime correctness of `server.environment.AquacommonsEnvironment`
-- OpenEnv interface compliance (`reset()`, `step()`, state modeling)
-- offline execution with no external APIs or cloud databases
-- task design quality across easy, medium, and hard scenarios
-- grading and reward logic that balances fishing success with sustainability and hazards
-- overall code quality, project organization, and documentation
+Alternatively, judges can interact with the deployed Space directly at https://huggingface.co/spaces/suryavamsi0818/openEnv
 
 ## Troubleshooting
 
-- If dependencies fail, reinstall with:
+- **Import errors**: Ensure dependencies are installed: `pip install -r server/requirements.txt`
+- **HF Space not loading**: The Space is deployed at https://huggingface.co/spaces/suryavamsi0818/openEnv and should be live and public
+- **Demo script issues**: Try a fresh virtual environment: `python -m venv .venv && source .venv/bin/activate && pip install -r server/requirements.txt`
 
-```bash
-pip install -r server/requirements.txt
-```
+---
 
-- If the server is not accessible, verify the port and host:
+**Submitted for**: Meta PyTorch OpenEnv Hackathon
 
-```bash
-uvicorn server.app:app --reload --host 0.0.0.0 --port 8000
-```
-
-- If Docker deployment fails, confirm the `Dockerfile` is present and build manually:
-
-```bash
-docker build -t aquacommons .
-```
-
-- If the README or healthcheck does not match, refresh the local container or restart the server.
-
-## License / Acknowledgements
-
-This project is submitted for the Meta PyTorch OpenEnv Hackathon.
-
-Acknowledgements:
-
-- OpenEnv by Meta for the environment framework
-- FastAPI / Uvicorn for the HTTP runtime
-- Hugging Face Spaces for deployment support
+**Built with**: OpenEnv, FastAPI, Hugging Face Spaces

@@ -13,7 +13,7 @@ env/
 .env
 .env.local
 .env.*.local
-!.env.example
+# Keep .env.example in repo as a template; do not commit .env or local env files
 
 # Editor files
 .vscode/
