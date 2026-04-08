@@ -52,5 +52,4 @@ docker-compose.override.yml
 
 # Project artifacts
 openenv_aquacommons.egg-info
-uv.lock
 TODO.md
