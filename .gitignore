@@ -1,0 +1,8 @@
+.venv
+__pycache__
+*.pyc
+__init__.py
+.vscode
+openenv_aquacommons.egg-info
+uv.lock
+TODO.md

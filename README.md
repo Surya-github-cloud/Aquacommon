@@ -98,6 +98,80 @@ export MODEL_NAME="gpt-4o-mini"
 export HF_TOKEN="your_huggingface_token"
 ```
 
+Run the baseline agent:
+```bash
+python inference.py
+```
+
+Expected output format:
+```
+[START] task=easy-calm-bay env=aquacommons model=gpt-4o-mini
+[STEP] step=1 action=MOVE_NORTH cast_intensity=0.00 reward=0.23 done=false error=null
+[STEP] step=2 action=CAST_NET cast_intensity=0.75 reward=0.52 done=false error=null
+[END] success=true steps=35 score=18.234 rewards=0.231,0.452,0.678,...
+```
+
+## Integration with OpenEnv
+
+This environment is fully compatible with the OpenEnv framework:
+
+```python
+from server.environment import AquacommonsEnvironment
+from models import AquacommonsAction
+
+env = AquacommonsEnvironment()
+obs = env.reset(task="easy-calm-bay")
+
+action = AquacommonsAction(
+    action_type="MOVE_NORTH",
+    cast_intensity=0.0,
+    explanation="Navigating north toward fish clusters"
+)
+
+result = env.step(action)
+print(f"Reward: {result.reward}, Done: {result.done}")
+```
+
+## Reward System
+
+The reward function (0.0–1.0 normalized) considers:
+
+- **Catch Reward**: Based on fish density and casting intensity
+- **Movement Reward**: Incentivizes finding denser fishing areas
+- **Efficiency Reward**: Rewards fuel-conscious navigation
+- **Sustainability Reward**: Encourages sustainable fishing practices
+- **Penalties**: For overfishing, hazard encounters, fuel depletion, quota violations
+
+Agents learn to balance short-term catch with long-term sustainability.
+
+## Evaluation Metrics
+
+Submissions are evaluated on:
+
+1. **Interface Compliance**: Correct step/reset/state implementation
+2. **Task Execution**: Completes all 3 tasks without errors
+3. **Baseline Performance**: inference.py produces reproducible scores
+4. **Dockerfile**: Builds and runs correctly on 2vCPU + 8GB RAM
+5. **Deployment**: HF Space responds to reset() endpoint
+
+## Citation
+
+If you use AquaCommons in your research, please cite:
+
+```bibtex
+@environment{aquacommons2026,
+  title={AquaCommons: A Sustainable Fishing Environment for OpenEnv},
+  year={2026},
+  author={Aquacommons Team},
+  habitat={\url{https://github.com/meta-pytorch/OpenEnv}}
+}
+```
+
+## License
+
+Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+Licensed under the BSD-style license.
+
 Run the baseline inference script:
 ```bash
 python inference.py

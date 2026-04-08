@@ -73,6 +73,19 @@ async def health():
     }
 
 
+@app.on_event("startup")
+async def startup_message():
+    """Print user-friendly startup message."""
+    print("\n" + "="*70)
+    print("🐟 AquaCommons OpenEnv Server Started")
+    print("="*70)
+    print(" Local:      http://localhost:8000")
+    print(" API Schema: http://localhost:8000/schema")
+    print(" Health:     http://localhost:8000/health")
+    print("\n💡 Use http://localhost:8000 ")
+    print("="*70 + "\n")
+
+
 def main(host: str = "0.0.0.0", port: int = 8000):
     """
     Entry point for direct execution via uv run or python -m.
