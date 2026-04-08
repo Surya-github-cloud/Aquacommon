@@ -18,12 +18,8 @@ if not HF_TOKEN:
 # Initialize OpenAI client
 client = OpenAI(api_key=HF_TOKEN, base_url=API_BASE_URL)
 
-# Task configuration
-TASKS = [
-    "easy-calm-bay",
-    "medium-migrating-schools",
-    "hard-volatile-ocean",
-]
+# Task configuration - run single task, configurable via env var
+TASK_NAME = os.getenv("TASK_NAME", "easy-calm-bay")
 
 SYSTEM_PROMPT = (
     "You are a smart coastal fishing fleet operator. "
@@ -134,7 +130,7 @@ def run_task(task_name: str) -> None:
 
             except Exception as exc:
                 error_text = str(exc).replace("\n", " ")
-                # On error, use STAY as action and print error
+                # On error, use STAY as action and print error (fallback behavior)
                 print(
                     f"[STEP] step={step_count} action=STAY reward=0.00 done=false error={error_text}"
                 )
@@ -149,9 +145,8 @@ def run_task(task_name: str) -> None:
 
 
 def main() -> None:
-    """Run all tasks."""
-    for task_name in TASKS:
-        run_task(task_name)
+    """Run the single task."""
+    run_task(TASK_NAME)
 
 
 if __name__ == "__main__":
