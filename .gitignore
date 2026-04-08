@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .venv
 __pycache__
 *.pyc
@@ -6,3 +7,54 @@ __init__.py
 openenv_aquacommons.egg-info
 uv.lock
 TODO.md
+=======
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables
+.env
+.env.*
+
+# Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# macOS
+.DS_Store
+
+# Hugging Face cache
+cache/
+
+# Python build
+build/
+dist/
+*.egg-info/
+.eggs/
+.python-version
+
+# Logs
+*.log
+
+# Temp files
+*.tmp
+*~
+
+# Docker
+docker-compose.override.yml
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+>>>>>>> a610bbb (Add .gitignore to exclude .env, __pycache__, venv, and other artifacts)
