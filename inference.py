@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from typing import Any, Dict, List
 
 # Load environment variables from .env file if available (for local development)
@@ -69,16 +70,21 @@ def safe_model_dump(obj) -> Dict[str, Any]:
 
 def parse_action_response(text: str) -> AquacommonsAction:
     action_type = "STAY"
+    cast_intensity = 0.0
     for line in text.split("\n"):
         line = line.strip()
         if line.startswith("ACTION_TYPE:"):
             action_type = line.split(":", 1)[1].strip().upper()
-            break
+        elif line.startswith("CAST_INTENSITY:"):
+            try:
+                cast_intensity = float(line.split(":", 1)[1].strip())
+            except Exception:
+                cast_intensity = 0.0
     if action_type not in ALLOWED_ACTIONS:
         action_type = "STAY"
     return AquacommonsAction(
         action_type=action_type,
-        cast_intensity=0.0,
+        cast_intensity=float(np.clip(cast_intensity, 0.0, 1.0)),
         explanation="LLM selected action",
     )
 
@@ -145,7 +151,7 @@ def run_task(task_name: str) -> None:
                 step_count += 1  # Increment after successful step
 
                 print(
-                    f"[STEP] step={current_step} action={action.action_type} reward={reward:.2f} done={str(done).lower()} error=null"
+                    f"[STEP] step={current_step} action={action.action_type} cast_intensity={action.cast_intensity:.2f} reward={reward:.2f} done={str(done).lower()} error=null"
                 )
 
                 state = safe_model_dump(result)
@@ -157,22 +163,23 @@ def run_task(task_name: str) -> None:
             except Exception as exc:
                 error_text = str(exc).replace("\n", " ").replace("\r", " ")
                 print(
-                    f"[STEP] step={current_step} action=STAY reward=0.00 done=false error={error_text}"
+                    f"[STEP] step={current_step} action=STAY cast_intensity=0.00 reward=0.00 done=false error={error_text}"
                 )
                 break
 
     except Exception as exc:
         error_text = str(exc).replace("\n", " ").replace("\r", " ")
         print(
-            f"[STEP] step=0 action=STAY reward=0.00 done=false error={error_text}"
+            f"[STEP] step=0 action=STAY cast_intensity=0.00 reward=0.00 done=false error={error_text}"
         )
 
     finally:
         if env and hasattr(env, 'close'):
             env.close()
         rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+        score = sum(rewards)
         print(
-            f"[END] success={str(success).lower()} steps={step_count} rewards={rewards_str}"
+            f"[END] success={str(success).lower()} steps={step_count} score={score:.2f} rewards={rewards_str}"
         )
 
 

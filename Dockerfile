@@ -18,8 +18,8 @@ COPY . .
 # Install the package in development mode
 RUN pip install -e .
 
-# Expose the HF Spaces port
-EXPOSE 7860
+# Expose the default application port
+EXPOSE 8000
 
-# Command to run the application on port 7860 for HF Spaces
-CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]
+# Command to run the application using the HF Spaces PORT environment variable if available
+CMD ["sh", "-c", "uvicorn server.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
