@@ -35,7 +35,11 @@ if not HF_TOKEN:
 
 client = OpenAI(api_key=HF_TOKEN, base_url=API_BASE_URL)
 
-TASK_NAME = os.getenv("TASK_NAME", "easy-calm-bay")
+TASK_NAMES = [
+    "easy-calm-bay",
+    "medium-migrating-schools",
+    "hard-volatile-ocean",
+]
 
 SYSTEM_PROMPT = (
     "You are a smart coastal fishing fleet operator. "
@@ -189,24 +193,33 @@ def run_task(task_name: str) -> None:
         if env and hasattr(env, 'close'):
             env.close()
         rewards_str = ",".join(f"{r:.2f}" for r in rewards)
-        score = sum(rewards)
+        if rewards:
+            score = float(np.clip(np.mean(rewards), 0.001, 0.999))
+        else:
+            score = 0.5
         print(
-            f"[END] success={str(success).lower()} steps={step_count} rewards={rewards_str}"
+            f"[END] success={str(success).lower()} steps={step_count} score={score:.3f} rewards={rewards_str}"
         )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run Aquacommons inference for a specified task."
+        description="Run Aquacommons inference for a specified task or all tasks."
     )
     parser.add_argument(
         "task",
         nargs="?",
-        default=os.getenv("TASK_NAME", "easy-calm-bay"),
-        help="Task name to run (defaults to TASK_NAME in .env or easy-calm-bay)",
+        default=None,
+        help="Task name to run (defaults to all tasks when omitted)",
     )
     args = parser.parse_args()
-    run_task(args.task)
+    selected_task = args.task or os.getenv("TASK_NAME")
+
+    if selected_task:
+        run_task(selected_task)
+    else:
+        for task_name in TASK_NAMES:
+            run_task(task_name)
 
 
 if __name__ == "__main__":
