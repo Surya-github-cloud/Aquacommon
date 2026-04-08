@@ -31,9 +31,7 @@ SYSTEM_PROMPT = (
     "For each observation, choose one action from MOVE_NORTH, MOVE_SOUTH, MOVE_EAST, MOVE_WEST, STAY, CAST_NET, RETURN_TO_PORT. "
     "Prefer sustainable casts, move toward denser fish, conserve fuel, and return safely when quota or fuel is low. "
     "Output your action in this exact format:\n"
-    "ACTION_TYPE: <action>\n"
-    "CAST_INTENSITY: <0.0-1.0>\n"
-    "EXPLANATION: <reason>"
+    "ACTION_TYPE: <action>"
 )
 
 ALLOWED_ACTIONS = {
@@ -66,20 +64,10 @@ def parse_action_response(text: str) -> AquacommonsAction:
         line = line.strip()
         if line.startswith("ACTION_TYPE:"):
             action_type = line.split(":", 1)[1].strip().upper()
-        elif line.startswith("CAST_INTENSITY:"):
-            try:
-                cast_intensity = float(line.split(":", 1)[1].strip())
-            except (ValueError, IndexError):
-                cast_intensity = 0.0
-        elif line.startswith("EXPLANATION:"):
-            explanation = line.split(":", 1)[1].strip()
 
     # Validate action
     if action_type not in ALLOWED_ACTIONS:
         action_type = "STAY"
-
-    # Ensure cast_intensity is in valid range
-    cast_intensity = max(0.0, min(cast_intensity, 1.0))
 
     return AquacommonsAction(
         action_type=action_type,
@@ -120,7 +108,7 @@ def run_task(task_name: str) -> None:
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": prompt},
                     ],
-                    temperature=0.6,
+                    temperature=0.0,  # Deterministic for evaluation
                     max_tokens=250,
                 )
 
@@ -133,12 +121,9 @@ def run_task(task_name: str) -> None:
                 done = bool(result.done)
                 rewards.append(reward)
 
-                # Format action for output
-                action_str = action.action_type
-
-                # Print step
+                # Print step (action string only, no extra fields)
                 print(
-                    f"[STEP] step={step_count} action={action_str} reward={reward:.2f} done={str(done).lower()} error=null"
+                    f"[STEP] step={step_count} action={action.action_type} reward={reward:.2f} done={str(done).lower()} error=null"
                 )
 
                 state = result.model_dump()
@@ -149,8 +134,9 @@ def run_task(task_name: str) -> None:
 
             except Exception as exc:
                 error_text = str(exc).replace("\n", " ")
+                # On error, use STAY as action and print error
                 print(
-                    f"[STEP] step={step_count} action=ERROR reward=0.00 done=false error={error_text}"
+                    f"[STEP] step={step_count} action=STAY reward=0.00 done=false error={error_text}"
                 )
                 break
 
