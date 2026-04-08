@@ -2,7 +2,7 @@
 title: AquaCommons Environment
 emoji: 🐟
 colorFrom: blue
-colorTo: teal
+colorTo: green
 sdk: docker
 app_file: server/app.py
 pinned: false
