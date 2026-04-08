@@ -10,7 +10,7 @@ pinned: false
 
 # AquaCommons OpenEnv Environment
 
-AquaCommons is a sustainable fishing simulation built for the Meta PyTorch OpenEnv hackathon. It models a coastal fishing fleet operating under changing currents, weather, fuel limits, and quota constraints.
+AquaCommons is a sustainable fishing simulation built for the Meta PyTorch OpenEnv hackathon. It models a coastal fishing fleet operating under changing currents, weather, fuel, and quota constraints.
 
 ## Overview
 
@@ -24,7 +24,7 @@ The task challenges an agent to:
 - deploy fishing casts while preserving quota
 - react to dynamic weather, currents, and hazards
 
-AquaCommons is designed for RL evaluation and grading because it combines structured action/observation spaces, scenario-based tasks, and reward logic that balances catch performance with sustainability and safety.
+AquaCommons is designed for RL evaluation because it combines structured action and observation spaces, clear task scenarios, and reward logic that balances catch, efficiency, and sustainability.
 
 The reward function is scaled to keep episode scores within a bounded range. Each step is scored by combining multiple numeric components:
 
@@ -34,43 +34,114 @@ The reward function is scaled to keep episode scores within a bounded range. Eac
 - `sustainability_reward`: +0.14 for responsible casts with intensity ≤ 0.65 in dense areas, -0.06 for aggressive or low-value casts, plus an extra +0.05 bonus for low-intensity casts in dense regions.
 - `penalty`: +0.40 penalty for a net cast that catches nothing, +0.25 penalty for high-intensity casts in low-density water, and an automatic -0.02 step cost every step.
 - `hazard_penalty`: -0.60 for entering a hazard tile in hard mode, plus extra fuel cost.
-- Terminal bonus: +0.80 raw reward when the agent returns safely to port with valid catch and no quota violation.
+- terminal bonus: +0.80 raw reward when the agent returns safely to port with valid catch and no quota violation.
 
 The raw reward is then normalized as `(raw_reward + 1.0) / 2.0` and clipped to the range `0.0–1.0`, producing a final per-step reward that remains comparable across episodes.
 
-The baseline evaluation in `inference.py` is not a rule-based analysis system; it runs the environment and reports step-by-step actions and rewards. The project itself is built on OpenEnv and uses environment dynamics and scoring rules, not a separate handcrafted rule engine.
+This project is built on OpenEnv and provides environment dynamics and scoring rules. The baseline `inference.py` script is a separate demo runner and is not part of the core environment API.
+
+## Quick Start
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/Surya-github-cloud/Aquacommon.git
+cd aquacommons
+```
+
+2. Create and activate a virtual environment:
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate    # Windows
+source .venv/bin/activate # macOS/Linux
+```
+
+3. Install dependencies:
+
+```bash
+pip install -r server/requirements.txt
+```
+
+4. Run the server:
+
+```bash
+uvicorn server.app:app --reload --host 0.0.0.0 --port 8000
+```
+
+5. Run the demo script:
+
+```bash
+python inference.py
+```
 
 ## Features
 
-- OpenEnv-compliant environment with `reset()`, `step()`, and `state`
+- OpenEnv-compliant environment with `reset()` and `step()`, plus internal state modeling
 - Typed Pydantic models for actions, observations, and state
 - Three benchmark tasks: `easy-calm-bay`, `medium-migrating-schools`, `hard-volatile-ocean`
 - Reward logic for catch, fuel efficiency, sustainability, and hazard penalties
-- Baseline inference script with step logging and final score output
+- Baseline demo script with step logging and final score output
 - FastAPI HTTP server exposing environment endpoints
 - Docker container support for local and Hugging Face Spaces deployment
 
-## Repository Structure
+## Repository Layout
 
+- `inference.py` — REQUIRED at repository root; baseline evaluation/demo runner
 - `openenv.yaml` — OpenEnv metadata, task definitions, and deployment settings
 - `server/environment.py` — core OpenEnv environment implementation
 - `server/app.py` — HTTP server exposing environment interfaces and health checks
 - `models.py` — `AquacommonsAction`, `AquacommonsObservation`, and state schema definitions
-- `inference.py` — demo and baseline execution script for task evaluation
 - `server/requirements.txt` — runtime Python dependencies for the server
 - `Dockerfile` — container build instructions with port handling for Spaces
 - `pyproject.toml` — package metadata and installation config
 - `README.md` — this submission documentation
 
+Expected file layout:
+
+```text
+.
+├── inference.py
+├── openenv.yaml
+├── README.md
+├── Dockerfile
+├── pyproject.toml
+├── models.py
+└── server/
+    ├── app.py
+    ├── environment.py
+    └── requirements.txt
+```
+
+## Submission Requirements
+
+The hackathon submission is expected to include:
+
+- A public GitHub repository: https://github.com/Surya-github-cloud/Aquacommon
+- `server/requirements.txt`
+- `inference.py` located at the repository root
+- `README.md`
+- A deployed Hugging Face Spaces URL: https://huggingface.co/spaces/suryavamsi0818/openEnv
+- A working Docker/container setup if applicable
+- `openenv.yaml` and supporting environment files
+
+Important notes for review:
+
+- `inference.py` must be located in the root of the repository.
+- Support files may exist alongside it in the repo root.
+- All environment logic must run offline.
+- No external APIs or cloud databases are required for the core environment.
+- The submitted Hugging Face Space must be built and running.
+
 ## Prerequisites
 
 - Python 3.10 or later
 - Git for repository access and version control
-- Local development familiarity with virtual environments
+- Virtual environment familiarity
 - `uvicorn` for running the FastAPI server locally
 - `docker` for container-based deployment or testing
 
-> The environment itself is designed to run offline and does not require cloud databases or hidden external services. The server and environment can execute locally without external APIs.
+> The environment itself runs offline and does not depend on external APIs. The core environment and server do not require any external API token. If `inference.py` is used for an optional LLM-based demo, that component may require an API token, but it is separate from the offline environment.
 
 ## Installation
 
@@ -109,51 +180,35 @@ Start the OpenEnv server locally:
 uvicorn server.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Then open the local health endpoint to confirm startup:
+Then confirm startup:
 
 ```bash
 curl http://localhost:8000/health
 ```
 
-Run the demo evaluation script:
+Run the demo script from the repository root:
 
 ```bash
 python inference.py
 ```
 
-> `inference.py` is an optional baseline runner. The core environment and HTTP server do not require external APIs to run.
+## Offline Execution Requirements
 
-## Submission Contents
-
-This submission includes:
-
-- Public GitHub repository with source code
-- `server/requirements.txt` for environment dependencies
-- `Dockerfile` for container deployment
-- `openenv.yaml` with OpenEnv metadata and tasks
-- `inference.py` demo script for evaluation
-- `README.md` documentation and usage instructions
-- `server/app.py` FastAPI deployment entrypoint
-
-If deployed to Hugging Face Spaces, the expected container runtime is the repository Docker configuration.
-
-## Environment Constraints
-
-- The core environment runs offline.
-- No cloud database or hidden external services are required for the environment itself.
-- The environment is self-contained and only depends on the Python packages listed in `server/requirements.txt`.
-- Optional inference evaluation may use an API token if invoked, but is not required for OpenEnv compliance.
+- The core environment is built to run offline.
+- No cloud database is required.
+- No external API calls are required for the environment itself.
+- Any optional LLM/demo path in `inference.py` is separate from the offline environment and is not required for validation.
 
 ## Evaluation Criteria
 
-Judges should verify:
+Reviewers can validate:
 
 - runtime correctness of `server.environment.AquacommonsEnvironment`
 - OpenEnv interface compliance (`reset()`, `step()`, state modeling)
+- offline execution with no external APIs or cloud databases
 - task design quality across easy, medium, and hard scenarios
 - grading and reward logic that balances fishing success with sustainability and hazards
 - overall code quality, project organization, and documentation
-
 
 ## Troubleshooting
 
