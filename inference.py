@@ -1,24 +1,27 @@
 import os
 from typing import Any, Dict, List
 
+# Load environment variables from .env file if available (for local development)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from openai import OpenAI
 
 from models import AquacommonsAction
 from server.environment import AquacommonsEnvironment
 
-# Environment variables
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-# Verify HF_TOKEN is set
 if not HF_TOKEN:
     raise RuntimeError("HF_TOKEN environment variable is required to run inference.py")
 
-# Initialize OpenAI client
 client = OpenAI(api_key=HF_TOKEN, base_url=API_BASE_URL)
 
-# Task configuration - run single task, configurable via env var
 TASK_NAME = os.getenv("TASK_NAME", "easy-calm-bay")
 
 SYSTEM_PROMPT = (
@@ -42,7 +45,6 @@ ALLOWED_ACTIONS = {
 
 
 def format_observation(observation: Dict[str, Any]) -> str:
-    """Format observation for the LLM prompt."""
     lines = []
     for key in sorted(observation.keys()):
         value = observation[key]
@@ -50,46 +52,53 @@ def format_observation(observation: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def parse_action_response(text: str) -> AquacommonsAction:
-    """Parse LLM response into an AquacommonsAction."""
-    action_type = "STAY"
-    cast_intensity = 0.0
-    explanation = "No explanation provided."
+def safe_model_dump(obj) -> Dict[str, Any]:
+    """Safely extract dict from observation/result, handling Pydantic or plain dict."""
+    if hasattr(obj, "model_dump"):
+        try:
+            return obj.model_dump()
+        except Exception:
+            return {}
+    if isinstance(obj, dict):
+        return obj
+    try:
+        return dict(obj)
+    except Exception:
+        return {}
 
+
+def parse_action_response(text: str) -> AquacommonsAction:
+    action_type = "STAY"
     for line in text.split("\n"):
         line = line.strip()
         if line.startswith("ACTION_TYPE:"):
             action_type = line.split(":", 1)[1].strip().upper()
-
-    # Validate action
+            break
     if action_type not in ALLOWED_ACTIONS:
         action_type = "STAY"
-
     return AquacommonsAction(
         action_type=action_type,
-        cast_intensity=cast_intensity,
-        explanation=explanation,
+        cast_intensity=0.0,
+        explanation="LLM selected action",
     )
 
 
 def run_task(task_name: str) -> None:
-    """Run a single task and print results in required format."""
-    env = AquacommonsEnvironment()
-    observation = env.reset(task=task_name)
-    state = observation.model_dump()
     rewards: List[float] = []
     step_count = 0
     success = False
+    env = None
 
     print(f"[START] task={task_name} env=aquacommons model={MODEL_NAME}")
 
     try:
-        while step_count < 60:
-            step_count += 1
-            error_text = "null"
+        env = AquacommonsEnvironment()
+        observation = env.reset(task=task_name)
+        state = safe_model_dump(observation)
 
+        while step_count < 60:
+            current_step = step_count + 1
             try:
-                # Build prompt
                 observation_str = format_observation(state)
                 prompt = (
                     f"Task: {task_name}\n"
@@ -97,47 +106,70 @@ def run_task(task_name: str) -> None:
                     f"Choose one best action."
                 )
 
-                # Get action from LLM
                 response = client.chat.completions.create(
                     model=MODEL_NAME,
                     messages=[
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": prompt},
                     ],
-                    temperature=0.0,  # Deterministic for evaluation
+                    temperature=0.0,
                     max_tokens=250,
                 )
 
                 response_text = response.choices[0].message.content.strip()
                 action = parse_action_response(response_text)
 
-                # Step environment
+                # Simple retry if action is fallback (likely invalid)
+                if action.action_type == "STAY" and "ACTION_TYPE:" not in response_text:
+                    retry_prompt = prompt + "\nPlease respond with a valid ACTION_TYPE from the allowed actions."
+                    retry_response = client.chat.completions.create(
+                        model=MODEL_NAME,
+                        messages=[
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": retry_prompt},
+                        ],
+                        temperature=0.0,
+                        max_tokens=250,
+                    )
+                    retry_text = retry_response.choices[0].message.content.strip()
+                    action = parse_action_response(retry_text)
+
+                # Validate action before stepping
+                if action.action_type not in ALLOWED_ACTIONS:
+                    action = AquacommonsAction(action_type="STAY", cast_intensity=0.0, explanation="Fallback action")
+
                 result = env.step(action)
                 reward = float(result.reward)
                 done = bool(result.done)
                 rewards.append(reward)
+                step_count += 1  # Increment after successful step
 
-                # Print step (action string only, no extra fields)
                 print(
-                    f"[STEP] step={step_count} action={action.action_type} reward={reward:.2f} done={str(done).lower()} error=null"
+                    f"[STEP] step={current_step} action={action.action_type} reward={reward:.2f} done={str(done).lower()} error=null"
                 )
 
-                state = result.model_dump()
+                state = safe_model_dump(result)
 
                 if done:
                     success = True
                     break
 
             except Exception as exc:
-                error_text = str(exc).replace("\n", " ")
-                # On error, use STAY as action and print error (fallback behavior)
+                error_text = str(exc).replace("\n", " ").replace("\r", " ")
                 print(
-                    f"[STEP] step={step_count} action=STAY reward=0.00 done=false error={error_text}"
+                    f"[STEP] step={current_step} action=STAY reward=0.00 done=false error={error_text}"
                 )
                 break
 
+    except Exception as exc:
+        error_text = str(exc).replace("\n", " ").replace("\r", " ")
+        print(
+            f"[STEP] step=0 action=STAY reward=0.00 done=false error={error_text}"
+        )
+
     finally:
-        # Always print [END]
+        if env and hasattr(env, 'close'):
+            env.close()
         rewards_str = ",".join(f"{r:.2f}" for r in rewards)
         print(
             f"[END] success={str(success).lower()} steps={step_count} rewards={rewards_str}"
@@ -145,7 +177,6 @@ def run_task(task_name: str) -> None:
 
 
 def main() -> None:
-    """Run the single task."""
     run_task(TASK_NAME)
 
 
