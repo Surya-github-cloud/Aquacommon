@@ -1,37 +1,41 @@
-import asyncio
 import os
-import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
+
+from openai import OpenAI
 
 from models import AquacommonsAction
 from server.environment import AquacommonsEnvironment
 
+# Environment variables
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+# Verify HF_TOKEN is set
+if not HF_TOKEN:
+    raise RuntimeError("HF_TOKEN environment variable is required to run inference.py")
+
+# Initialize OpenAI client
+client = OpenAI(api_key=HF_TOKEN, base_url=API_BASE_URL)
+
+# Task configuration
 TASKS = [
     "easy-calm-bay",
     "medium-migrating-schools",
     "hard-volatile-ocean",
 ]
-API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-HF_TOKEN = os.getenv("HF_TOKEN")  # Required for Hugging Face authentication
 
 SYSTEM_PROMPT = (
     "You are a smart coastal fishing fleet operator. "
     "Your goal is to manage fuel, currents, weather, quota, and sustainability while harvesting fish in Indian coastal waters. "
     "For each observation, choose one action from MOVE_NORTH, MOVE_SOUTH, MOVE_EAST, MOVE_WEST, STAY, CAST_NET, RETURN_TO_PORT. "
     "Prefer sustainable casts, move toward denser fish, conserve fuel, and return safely when quota or fuel is low. "
-    "Output only the requested action fields in plain text, one per line: ACTION_TYPE, CAST_INTENSITY, EXPLANATION."
+    "Output your action in this exact format:\n"
+    "ACTION_TYPE: <action>\n"
+    "CAST_INTENSITY: <0.0-1.0>\n"
+    "EXPLANATION: <reason>"
 )
 
-STEP_PROMPT_TEMPLATE = (
-    "Task: {task}\n"
-    "Observation:\n{observation}\n"
-    "Choose one best action. "
-    "Use ACTION_TYPE, CAST_INTENSITY, and EXPLANATION exactly as described. "
-    "If the fleet is already in a good spot, STAY is acceptable."
-)
-
-ACTION_PATTERN = re.compile(r"^(ACTION_TYPE|CAST_INTENSITY|EXPLANATION)\s*:\s*(.*)$", re.IGNORECASE)
 ALLOWED_ACTIONS = {
     "MOVE_NORTH",
     "MOVE_SOUTH",
@@ -43,118 +47,126 @@ ALLOWED_ACTIONS = {
 }
 
 
-def build_prompt(observation: Dict[str, Any], task: str) -> str:
-    observation_text = json_safe_observation(observation)
-    return STEP_PROMPT_TEMPLATE.format(task=task, observation=observation_text)
-
-
-def json_safe_observation(observation: Dict[str, Any]) -> str:
-    lines: List[str] = []
+def format_observation(observation: Dict[str, Any]) -> str:
+    """Format observation for the LLM prompt."""
+    lines = []
     for key in sorted(observation.keys()):
         value = observation[key]
-        if isinstance(value, list):
-            lines.append(f"{key}: {value}")
-        else:
-            lines.append(f"{key}: {value}")
+        lines.append(f"{key}: {value}")
     return "\n".join(lines)
 
 
 def parse_action_response(text: str) -> AquacommonsAction:
-    action_type: Optional[str] = None
-    cast_intensity: float = 0.0
-    explanation: str = "No explanation provided."
+    """Parse LLM response into an AquacommonsAction."""
+    action_type = "STAY"
+    cast_intensity = 0.0
+    explanation = "No explanation provided."
 
-    for line in text.splitlines():
-        match = ACTION_PATTERN.match(line.strip())
-        if not match:
-            continue
-        key = match.group(1).upper()
-        value = match.group(2).strip()
-        if key == "ACTION_TYPE":
-            action_type = value.upper()
-        elif key == "CAST_INTENSITY":
+    for line in text.split("\n"):
+        line = line.strip()
+        if line.startswith("ACTION_TYPE:"):
+            action_type = line.split(":", 1)[1].strip().upper()
+        elif line.startswith("CAST_INTENSITY:"):
             try:
-                cast_intensity = float(value)
-            except ValueError:
+                cast_intensity = float(line.split(":", 1)[1].strip())
+            except (ValueError, IndexError):
                 cast_intensity = 0.0
-        elif key == "EXPLANATION":
-            explanation = value
+        elif line.startswith("EXPLANATION:"):
+            explanation = line.split(":", 1)[1].strip()
 
+    # Validate action
     if action_type not in ALLOWED_ACTIONS:
         action_type = "STAY"
-    cast_intensity = float(max(0.0, min(cast_intensity, 1.0)))
-    return AquacommonsAction(action_type=action_type, cast_intensity=cast_intensity, explanation=explanation)
 
+    # Ensure cast_intensity is in valid range
+    cast_intensity = max(0.0, min(cast_intensity, 1.0))
 
-async def choose_action(observation: Dict[str, Any], task_name: str, step_number: int) -> AquacommonsAction:
-    if not HF_TOKEN:
-        raise RuntimeError("HF_TOKEN is required to run inference.py")
-
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI(api_key=HF_TOKEN, base_url=API_BASE_URL)
-
-    prompt = build_prompt(observation, task_name)
-    response = await client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.6,
-        max_tokens=250,
+    return AquacommonsAction(
+        action_type=action_type,
+        cast_intensity=cast_intensity,
+        explanation=explanation,
     )
 
-    text = response.choices[0].message.content.strip()
-    action = parse_action_response(text)
-    return action
 
-
-async def run_task(task_name: str) -> None:
+def run_task(task_name: str) -> None:
+    """Run a single task and print results in required format."""
     env = AquacommonsEnvironment()
     observation = env.reset(task=task_name)
     state = observation.model_dump()
     rewards: List[float] = []
     step_count = 0
     success = False
-    error_text = "null"
 
     print(f"[START] task={task_name} env=aquacommons model={MODEL_NAME}")
-    while step_count < 60:
-        step_count += 1
-        try:
-            action = await choose_action(state, task_name, step_count)
-            result = env.step(action)
-            reward = float(result.reward)
-            done = bool(result.done)
-            rewards.append(reward)
-            print(
-                f"[STEP] step={step_count} action={action.action_type} cast_intensity={action.cast_intensity:.2f} "
-                f"reward={reward:.2f} done={str(done).lower()} error={error_text}"
-            )
-            state = result.model_dump()
-            if done:
-                success = True
+
+    try:
+        while step_count < 60:
+            step_count += 1
+            error_text = "null"
+
+            try:
+                # Build prompt
+                observation_str = format_observation(state)
+                prompt = (
+                    f"Task: {task_name}\n"
+                    f"Observation:\n{observation_str}\n"
+                    f"Choose one best action."
+                )
+
+                # Get action from LLM
+                response = client.chat.completions.create(
+                    model=MODEL_NAME,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.6,
+                    max_tokens=250,
+                )
+
+                response_text = response.choices[0].message.content.strip()
+                action = parse_action_response(response_text)
+
+                # Step environment
+                result = env.step(action)
+                reward = float(result.reward)
+                done = bool(result.done)
+                rewards.append(reward)
+
+                # Format action for output
+                action_str = action.action_type
+
+                # Print step
+                print(
+                    f"[STEP] step={step_count} action={action_str} reward={reward:.2f} done={str(done).lower()} error=null"
+                )
+
+                state = result.model_dump()
+
+                if done:
+                    success = True
+                    break
+
+            except Exception as exc:
+                error_text = str(exc).replace("\n", " ")
+                print(
+                    f"[STEP] step={step_count} action=ERROR reward=0.00 done=false error={error_text}"
+                )
                 break
-        except Exception as exc:
-            error_text = str(exc).replace("\n", " ")
-            print(
-                f"[STEP] step={step_count} action=ERROR cast_intensity=0.00 reward=0.00 done=false error={error_text}"
-            )
-            break
 
-    score = sum(rewards)
-    rewards_string = ",".join(f"{r:.3f}" for r in rewards)
-    print(
-        f"[END] success={str(success).lower()} steps={step_count} score={score:.3f} rewards={rewards_string}"
-    )
+    finally:
+        # Always print [END]
+        rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+        print(
+            f"[END] success={str(success).lower()} steps={step_count} rewards={rewards_str}"
+        )
 
 
-async def main() -> None:
+def main() -> None:
+    """Run all tasks."""
     for task_name in TASKS:
-        await run_task(task_name)
+        run_task(task_name)
 
 
 if __name__ == "__main__":
-    import json
-
-    asyncio.run(main())
+    main()
