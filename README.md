@@ -49,7 +49,16 @@ git clone https://github.com/Surya-github-cloud/Aquacommon.git
 cd aquacommons
 ```
 
-2. Create and activate a virtual environment:
+2. Set up environment variables:
+
+```bash
+cp .env.example .env
+# Edit .env and add your Hugging Face token (HF_TOKEN) from https://huggingface.co/settings/tokens
+# The HF_TOKEN is required only for running the inference.py demo script
+# The core OpenEnv environment (server) runs without any environment variables
+```
+
+3. Create and activate a virtual environment:
 
 ```bash
 python -m venv .venv
@@ -57,19 +66,19 @@ python -m venv .venv
 source .venv/bin/activate # macOS/Linux
 ```
 
-3. Install dependencies:
+4. Install dependencies:
 
 ```bash
 pip install -r server/requirements.txt
 ```
 
-4. Run the server:
+5. Run the server:
 
 ```bash
 uvicorn server.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
-5. Run the demo script:
+6. Run the demo script (requires HF_TOKEN in .env):
 
 ```bash
 python inference.py
@@ -139,6 +148,7 @@ Important notes for review:
 - Git for repository access and version control
 - Virtual environment familiarity
 - `uvicorn` for running the FastAPI server locally
+- Hugging Face account with API token (for running the inference.py demo script)
 - `docker` for container-based deployment or testing
 
 > The environment itself runs offline and does not depend on external APIs. The core environment and server do not require any external API token. If `inference.py` is used for an optional LLM-based demo, that component may require an API token, but it is separate from the offline environment.

@@ -179,7 +179,7 @@ def run_task(task_name: str) -> None:
         rewards_str = ",".join(f"{r:.2f}" for r in rewards)
         score = sum(rewards)
         print(
-            f"[END] success={str(success).lower()} steps={step_count} score={score:.2f} rewards={rewards_str}"
+            f"[END] success={str(success).lower()} steps={step_count} rewards={rewards_str}"
         )
 
 
