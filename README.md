@@ -1,4 +1,14 @@
-﻿# AquaCommons — Sustainable Fishing OpenEnv
+﻿---
+title: AquaCommons Environment
+emoji: 🐟
+colorFrom: blue
+colorTo: teal
+sdk: docker
+app_file: server/app.py
+pinned: false
+---
+
+# AquaCommons — Sustainable Fishing OpenEnv
 
 AquaCommons is a lightweight OpenEnv environment built for the Meta PyTorch OpenEnv Hackathon. The environment simulates Indian coastal fishing operations where a smart fleet operator must locate schools, cast nets intelligently, and return to port while managing fuel, quota, and sustainability.
 
