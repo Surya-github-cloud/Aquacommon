@@ -1,0 +1,39 @@
+---
+title: AquaCommons Environment Server
+emoji: 🐟
+colorFrom: blue
+colorTo: teal
+sdk: docker
+pinned: false
+app_port: 8000
+base_path: /web
+tags:
+  - openenv
+  - fishing
+  - sustainability
+  - india
+  - reinforcement-learning
+  - simulation
+---
+
+name: aquacommons
+version: 0.1.0
+description: "AquaCommons is a sustainable fishing OpenEnv environment focused on Indian coastal waters, dynamic currents, and quota-aware fish harvesting."
+
+runtime: fastapi
+app: server.app:app
+port: 8000
+
+features:
+  - 25x25 fish density grid
+  - fuel, weather, currents, quota, and sustainability scoring
+  - easy, medium, hard fishing scenarios
+
+tasks:
+  - name: easy-calm-bay
+    description: Calm bay fishing with stable currents, predictable fish clusters, and high startup quota.
+  - name: medium-migrating-schools
+    description: Migrating schools with shifting currents, moderate quotas, and stronger sustainability pressure.
+  - name: hard-volatile-ocean
+    description: Volatile ocean conditions with storms, hazards, tight fuel, and hard quota tradeoffs.
+

@@ -1,0 +1,2 @@
+[console_scripts]
+server = aquacommons.server.app:main
