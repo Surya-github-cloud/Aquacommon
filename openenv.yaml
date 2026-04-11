@@ -17,8 +17,8 @@ tags:
 ---
 
 name: aquacommons
-version: 0.1.0
-description: "AquaCommons is a sustainable fishing OpenEnv environment focused on Indian coastal waters, dynamic currents, and quota-aware fish harvesting."
+version: 0.1.1
+description: "AquaCommons is a sustainable fishing OpenEnv environment focused on Indian coastal waters, dynamic currents, and quota-aware fish harvesting with multi-agent and policy features."
 
 runtime: fastapi
 app: server.app:app
@@ -30,10 +30,14 @@ features:
   - easy, medium, hard fishing scenarios
 
 tasks:
-  - name: easy-calm-bay
-    description: Calm bay fishing with stable currents, predictable fish clusters, and high startup quota.
-  - name: medium-migrating-schools
-    description: Migrating schools with shifting currents, moderate quotas, and stronger sustainability pressure.
-  - name: hard-volatile-ocean
-    description: Volatile ocean conditions with storms, hazards, tight fuel, and hard quota tradeoffs.
+  - name: easy-msp-single-zone
+    description: Single zone marine spatial planning with stable conditions and one vessel.
+  - name: medium-msp-multi-agent-basic-negotiation
+    description: Multi-agent basic negotiation with 3 vessels and zone allocation.
+  - name: hard-msp-full-stochastic-conflict-resolution
+    description: Full stochastic conflict resolution with 5 vessels, hazards, and climate shocks.
+  - name: policy-experimentation-mode
+    description: Policy experimentation where agents set MPA size, carbon price, and quotas for 4 vessels.
+  - name: climate-shock-resilience
+    description: Climate shock resilience with 8 vessels facing cyclones, heatwaves, and mining events.
 

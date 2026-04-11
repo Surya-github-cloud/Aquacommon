@@ -36,15 +36,19 @@ if not HF_TOKEN:
 client = OpenAI(api_key=HF_TOKEN, base_url=API_BASE_URL)
 
 TASK_NAMES = [
-    "easy-calm-bay",
-    "medium-migrating-schools",
-    "hard-volatile-ocean",
+    "easy-msp-single-zone",
+    "medium-msp-multi-agent-basic-negotiation",
+    "hard-msp-full-stochastic-conflict-resolution",
+    "policy-experimentation-mode",
+    "climate-shock-resilience",
 ]
 
 SYSTEM_PROMPT = (
-    "You are a smart coastal fishing fleet operator. "
+    "You are a smart coastal fishing fleet operator or policy maker. "
     "Your goal is to manage fuel, currents, weather, quota, and sustainability while harvesting fish in Indian coastal waters. "
-    "For each observation, choose one action from MOVE_NORTH, MOVE_SOUTH, MOVE_EAST, MOVE_WEST, STAY, CAST_NET, RETURN_TO_PORT. "
+    "For each observation, choose one action from MOVE_NORTH, MOVE_SOUTH, MOVE_EAST, MOVE_WEST, STAY, CAST_NET, RETURN_TO_PORT, SET_POLICY, NEGOTIATE. "
+    "For policy tasks, set MPA size (0-1), carbon price (0-1), and quotas. "
+    "For negotiation, propose offers. "
     "Prefer sustainable casts, move toward denser fish, conserve fuel, and return safely when quota or fuel is low. "
     "Output your action in this exact format:\n"
     "ACTION_TYPE: <action>"
@@ -58,6 +62,8 @@ ALLOWED_ACTIONS = {
     "STAY",
     "CAST_NET",
     "RETURN_TO_PORT",
+    "SET_POLICY",
+    "NEGOTIATE",
 }
 
 
@@ -87,6 +93,10 @@ def safe_model_dump(obj) -> Dict[str, Any]:
 def parse_action_response(text: str) -> AquacommonsAction:
     action_type = "STAY"
     cast_intensity = 0.0
+    policy_mpa_size = 0.0
+    policy_carbon_price = 0.0
+    policy_quotas = []
+    negotiation_offer = ""
     for line in text.split("\n"):
         line = line.strip()
         if line.startswith("ACTION_TYPE:"):
@@ -96,12 +106,34 @@ def parse_action_response(text: str) -> AquacommonsAction:
                 cast_intensity = float(line.split(":", 1)[1].strip())
             except Exception:
                 cast_intensity = 0.0
+        elif line.startswith("POLICY_MPA_SIZE:"):
+            try:
+                policy_mpa_size = float(line.split(":", 1)[1].strip())
+            except Exception:
+                policy_mpa_size = 0.0
+        elif line.startswith("POLICY_CARBON_PRICE:"):
+            try:
+                policy_carbon_price = float(line.split(":", 1)[1].strip())
+            except Exception:
+                policy_carbon_price = 0.0
+        elif line.startswith("POLICY_QUOTAS:"):
+            try:
+                quotas_str = line.split(":", 1)[1].strip()
+                policy_quotas = [int(x.strip()) for x in quotas_str.split(",") if x.strip()]
+            except Exception:
+                policy_quotas = []
+        elif line.startswith("NEGOTIATION_OFFER:"):
+            negotiation_offer = line.split(":", 1)[1].strip()
     if action_type not in ALLOWED_ACTIONS:
         action_type = "STAY"
     return AquacommonsAction(
         action_type=action_type,
         cast_intensity=float(np.clip(cast_intensity, 0.0, 1.0)),
         explanation="LLM selected action",
+        policy_mpa_size=float(np.clip(policy_mpa_size, 0.0, 1.0)),
+        policy_carbon_price=float(np.clip(policy_carbon_price, 0.0, 1.0)),
+        policy_quotas=policy_quotas,
+        negotiation_offer=negotiation_offer,
     )
 
 
@@ -213,7 +245,7 @@ def main() -> None:
         help="Task name to run (defaults to all tasks when omitted)",
     )
     args = parser.parse_args()
-    selected_task = args.task or os.getenv("TASK_NAME")
+    selected_task = args.task or os.getenv("MY_ENV_TASK")
 
     if selected_task:
         run_task(selected_task)

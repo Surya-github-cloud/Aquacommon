@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# macOS
+.DS_Store
+
+# Hugging Face cache
+cache/
+
+# Python build
+build/
+dist/
+*.egg-info/
+.eggs/
+.python-version
+
+# Logs
+*.log
+
+# Temp files
+*.tmp
+*~
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+
+# Validation script
+validate-submission.sh
+
+# Lock files (will be regenerated)
+uv.lock
+requirements.txt
+
+# Test files
+test_*.py
+*_test.py
+
+# Notebook checkpoints
+.ipynb_checkpoints/

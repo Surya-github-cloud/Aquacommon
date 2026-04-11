@@ -36,24 +36,49 @@ Rewards are normalized to `[0.0, 1.0]` for consistent comparison across episodes
 
 ## Benchmark Tasks
 
-AquaCommons includes three difficulty levels, each with unique environmental conditions and challenges:
+AquaCommons includes five tasks inspired by real-world Indian ocean governance challenges, each with unique environmental conditions and challenges:
 
-### Easy: Calm Bay (`easy-calm-bay`)
-- **Conditions**: Stable currents, predictable fish clusters, calm weather
+### Easy: Single Zone MSP (`easy-msp-single-zone`)
+- **Conditions**: Stable currents, predictable fish clusters, calm weather, single vessel
 - **Challenges**: High startup quota allows for exploration, but requires efficient navigation to dense areas
 - **Goal**: Learn basic movement and casting strategies in a forgiving environment
+- **Real-world mapping**: Individual fisher in traditional coastal fishing zones
 
-### Medium: Migrating Schools (`medium-migrating-schools`)
-- **Conditions**: Shifting currents, moderate quotas, dynamic fish migration patterns
-- **Challenges**: Fish schools move unpredictably, requiring adaptive navigation and timing
-- **Goal**: Balance exploration with exploitation, manage fuel while tracking moving targets
+### Medium: Multi-Agent Basic Negotiation (`medium-msp-multi-agent-basic-negotiation`)
+- **Conditions**: Shifting currents, moderate quotas, 3 vessels with basic negotiation
+- **Challenges**: Vessels negotiate fishing zones, balance individual vs collective interests
+- **Goal**: Learn cooperative zone allocation and conflict avoidance
+- **Real-world mapping**: Small fishing cooperatives negotiating territorial waters
 
-### Hard: Volatile Ocean (`hard-volatile-ocean`)
-- **Conditions**: Storms, hazards, tight fuel limits, strict quota enforcement
-- **Challenges**: Random hazards reduce fuel, weather affects movement, high penalty for quota violations
-- **Goal**: Master risk management, emergency returns, and sustainable harvesting under pressure
+### Hard: Full Stochastic Conflict Resolution (`hard-msp-full-stochastic-conflict-resolution`)
+- **Conditions**: Storms, hazards, tight fuel, 5 vessels with full stochasticity
+- **Challenges**: Random hazards, climate shocks, quota violations, complex conflict resolution
+- **Goal**: Master risk management, emergency responses, and sustainable harvesting under pressure
+- **Real-world mapping**: Large fishing fleets in contested waters with environmental uncertainty
 
-Each task runs for up to 60 steps, with success determined by returning to port with valid catch and no quota violations.
+### Policy: Policy Experimentation Mode (`policy-experimentation-mode`)
+- **Conditions**: Government sets rules (MPA size, carbon price, quotas), 4 vessels react
+- **Challenges**: Agents adapt to policy changes, balance economic incentives with conservation
+- **Goal**: Maximize collective ocean health + economy through policy design
+- **Real-world mapping**: India's Sagarmala/PMMSY/Deep Ocean Mission policy frameworks
+
+### Climate: Climate Shock Resilience (`climate-shock-resilience`)
+- **Conditions**: 8+ vessels + random extreme events (cyclone, marine heatwave, illegal mining)
+- **Challenges**: Sudden environmental shocks, adaptive fleet management, recovery strategies
+- **Goal**: Build resilience to climate change impacts and anthropogenic disturbances
+- **Real-world mapping**: Climate-vulnerable Indian coastal communities facing cyclones and habitat loss
+
+## Real-World Mapping & Blue Carbon
+
+AquaCommons draws inspiration from India's maritime initiatives:
+
+- **Sagarmala Initiative**: Port-led development and coastal economic zones
+- **PMMSY (Pradhan Mantri Matsya Sampada Yojana)**: Blue economy and sustainable fisheries
+- **Deep Ocean Mission**: Exploration and conservation of deep-sea resources
+- **Blue Carbon Credit Marketplace**: Agents earn rewards for protecting/restoring seagrass beds and deploying artificial reefs
+- **Emergent Metrics**: Cooperation index (vessel coordination), equity score (Gini coefficient of catches), ocean health index (biomass + carbon sequestration)
+
+The environment simulates dynamic ocean conditions with PyTorch-accelerated currents and biomass diffusion, providing lightweight but realistic marine spatial planning challenges.
 
 ## Quick Start
 
